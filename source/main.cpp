@@ -1,4 +1,4 @@
-#include "GarrysMod/Lua/Interface.h"
+#include <GarrysMod/Lua/Interface.h>
 #include <ctime>
 #include <iostream>
 #include <thread>

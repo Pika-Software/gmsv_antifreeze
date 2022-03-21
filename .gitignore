@@ -1,3 +1,6 @@
+# Solutions
+projects
+
 # Prerequisites
 *.d
 
@@ -32,5 +35,3 @@
 *.app
 
 *.bat
-
-/projects

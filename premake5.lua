@@ -1,55 +1,23 @@
-workspace "gmsv_antifreeze"
-	configurations { "Release", "Release64", "Debug", "Debug64" }
-	location ( "projects/" .. os.get() )
+PROJECT_GENERATOR_VERSION = 3
 
-project "gmsv_antifreeze"
-	kind         "SharedLib"
-	language     "C++"
-	cppdialect	"C++11"
-	editandcontinue "Off"
-	includedirs  "../include/"
-	targetprefix ""
-	targetextension ".dll"
-	staticruntime "Off"
-	floatingpoint "Fast"
-	files
-	{
-		"src/**.*",
-		"../include/**.*"
-	}
-	
-	configuration "Debug"
-		architecture "x86"
-		symbols	"On"
-		optimize "Debug"
-		if os.is( "windows" ) then targetsuffix "_win32" end
-		if os.is( "macosx" )  then targetsuffix "_osx"   end
-		if os.is( "linux" )   then targetsuffix "_linux" end
+newoption {
+    trigger = "gmcommon",
+    description = "Sets the path to the garrysmod_common (https://github.com/danielga/garrysmod_common) directory",
+    value = "path to garrysmod_common directory"
+}
 
-	configuration "Debug64"
-		architecture "x86_64"
-		symbols	"On"
-		optimize "Debug"
-		if os.is( "windows" ) then targetsuffix "_win64" end
-		if os.is( "macosx" )  then targetsuffix "_osx64"   end
-		if os.is( "linux" )   then targetsuffix "_linux64" end
+local gmcommon = _OPTIONS.gmcommon or os.getenv "GARRYSMOD_COMMON"
 
-	configuration "Release"
-		architecture "x86"
-		symbols	"Off"
-		optimize "Speed"
-		omitframepointer "On"
-		flags { "LinkTimeOptimization" }
-		if os.is( "windows" ) then targetsuffix "_win32" end
-		if os.is( "macosx" )  then targetsuffix "_osx"   end
-		if os.is( "linux" )   then targetsuffix "_linux" end
+if not gmcommon then
+	print "You didn't provide a path to your garrysmod_common (https://github.com/danielga/garrysmod_common) directory, using submodule directory instead."
+end
 
-	configuration "Release64"
-		architecture "x86_64"
-		symbols	"Off"
-		optimize "Speed"
-		omitframepointer "On"
-		flags { "LinkTimeOptimization" }
-		if os.is( "windows" ) then targetsuffix "_win64" end
-		if os.is( "macosx" )  then targetsuffix "_osx64"   end
-		if os.is( "linux" )   then targetsuffix "_linux64" end
+include(gmcommon or "third-party/garrysmod_common")
+
+CreateWorkspace { name = "hang2kill" }
+	CreateProject { serverside = true }
+		IncludeHelpersExtended()
+		IncludeSDKTier0()
+		IncludeSDKTier1()
+		IncludeSDKCommon()
+		IncludeDetouring()

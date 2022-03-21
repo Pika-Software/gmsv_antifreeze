@@ -1,113 +1,130 @@
-#include <GarrysMod/Lua/Interface.h>
 #include <ctime>
 #include <iostream>
 #include <thread>
 #include <exception>
+#include <atomic>
+
 #ifdef __linux__
 	#include <sys/prctl.h>
 #endif
 
-std::time_t srvrtime = 0;
-unsigned short killtime = 60;
-bool flag = true;
-bool restart = false;
-bool paused = false;
+#include <GarrysMod/Lua/Interface.h>
 
-void af_watchdog()
+#define _MODULE_VERSION_ "0.0.1"
+
+std::atomic<std::time_t> srvtime = ATOMIC_VAR_INIT(0);
+std::atomic_ushort killtime = ATOMIC_VAR_INIT(60);
+std::atomic_bool flag = ATOMIC_VAR_INIT(true);
+std::atomic_bool restart = ATOMIC_VAR_INIT(false);
+std::atomic_bool paused = ATOMIC_VAR_INIT(false);
+
+void watchdog()
 {
 #ifdef __linux__
 	prctl(PR_SET_NAME,"antifreeze\0",NULL,NULL,NULL);
 #endif
-	std::cout << "Antifreeze: Watchdog starting up." << std::endl;
+	std::cout << "[Hang2Kill] Watchdog starting up" << std::endl;
+
 	unsigned short timeout = 0;
+
 	while(flag){
 		std::this_thread::sleep_for(std::chrono::seconds(1));
-//		std::cout << "srvrtime (thread) is " << srvrtime << "\n";
-		if(srvrtime == 0 || paused){
+		//std::cout << "srvrtime (thread) is " << srvrtime << "\n";
+		if(srvtime == 0 || paused) {
 			//do nothing
-		}else if(restart){
-				std::cout << "Manual restart requested, killing process..." << std::endl;
+		} else if(restart){
+				std::cout << "[Hang2Kill] Manual restart requested, killing process..." << std::endl;
 				exit(0);
-		}else if(srvrtime >= (std::time(nullptr))-2){
-			if (timeout != 0){
+		} else if(srvtime >= (std::time(nullptr)) - 2) {
+			if (timeout != 0) {
 				timeout = 0;
-				std::cout << "Antifreeze: Server caught back up!" << std::endl;
+				std::cout << "[Hang2Kill] Server caught back up!" << std::endl;
 			}
-		}else{
+		} else {
 			timeout++;
-			std::cout << "Antifreeze: Server is behind! (" << timeout << ")" << std::endl;
-			if(timeout == killtime){
-				std::cout << "Antifreeze: Server Frozen! killing process..." << std::endl;
+			std::cout << "[Hang2Kill] Hang Detected! (" << timeout << ")" << std::endl;
+			if (timeout == killtime) {
+				std::cout << "[Hang2Kill] Server hang timeout! Killing process..." << std::endl;
 				exit(139);
-			}
-			else if (timeout > killtime + 5)
-			{
-				std::cout << "Its not... its not shutting down!" << std::endl;
+			} else if (timeout > killtime + 5) {
+				std::cout << "[Hang2Kill] Its not... its not shutting down!" << std::endl;
 				std::terminate();
 			}
 		}
 	}
-	std::cout << "Antifreeze: Watchdog shut down. Please change map or restart server to start it again if you wish." << std::endl;
-}
-std::thread t1(af_watchdog);
 
-LUA_FUNCTION( RestartServer )
+	std::cout << "[Hang2Kill] Watchdog shutdown. Please change map / restart server to start it again if you wish" << std::endl;
+}
+std::thread hang_detector(watchdog);
+
+LUA_FUNCTION(RestartServer)
 {
-	restart = true;
+	restart.store(true, std::memory_order_release);
 	return 0;
 }
-LUA_FUNCTION( SetTimeout )
+
+LUA_FUNCTION(SetTimeout)
 {
-	killtime = static_cast<unsigned short>(LUA->CheckNumber(1));
+	killtime.store(static_cast<unsigned short>(LUA->CheckNumber(1)), std::memory_order_release);
 	return 0;
 }
-LUA_FUNCTION( WatchDogPing )
+
+LUA_FUNCTION(WatchDogPing)
 {
-	srvrtime = std::time(nullptr);
-//	std::cout << "srvrtime (WatchDogPing) is " << srvrtime << "\n";
+	srvtime.store(std::time(nullptr), std::memory_order_release);
+	//std::cout << "srvrtime (WatchDogPing) is " << srvrtime << "\n";
 	return 0;
 }
-LUA_FUNCTION( WatchDogStop )
+
+LUA_FUNCTION(WatchDogStop)
 {
-	flag = false;
-	t1.join();
+	flag.store(false, std::memory_order_release);
+	hang_detector.join();
 	return 0;
 }
-LUA_FUNCTION( WatchDogSetPaused )
+
+LUA_FUNCTION(WatchDogSetPaused)
 {
-	paused = LUA->GetBool(1);
+	paused.store(LUA->GetBool(1), std::memory_order_release);
 	return 0;
 }
+
 GMOD_MODULE_OPEN()
 {
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->CreateTable();
-	LUA->PushNumber(1);
-	LUA->SetField( -2, "version" );
-	LUA->PushNumber(0);//replace_build_number_here_automatic!
-	LUA->SetField( -2, "build" );
-	LUA->PushCFunction(WatchDogStop);
-	LUA->SetField( -2, "WatchdogStop" );
-	LUA->PushCFunction(SetTimeout);
-	LUA->SetField( -2, "SetTimeout" );
-	LUA->PushCFunction(RestartServer);
-	LUA->SetField( -2, "RestartServer" );
-	LUA->PushCFunction(WatchDogSetPaused);
-	LUA->SetField( -2, "WatchDogSetPaused" );
-	LUA->SetField( -2, "antifreeze" );
+		LUA->PushString(_MODULE_VERSION_);
+		LUA->SetField(-2, "version");
+
+		LUA->PushCFunction(WatchDogStop);
+		LUA->SetField(-2, "WatchdogStop");
+
+		LUA->PushCFunction(SetTimeout);
+		LUA->SetField(-2, "SetTimeout");
+
+		LUA->PushCFunction(RestartServer);
+		LUA->SetField(-2, "RestartServer");
+
+		LUA->PushCFunction(WatchDogSetPaused);
+		LUA->SetField(-2, "WatchDogSetPaused");
+	LUA->SetField(-2, "hang2kill");
+
 	LUA->GetField(-1, "timer");
-	LUA->GetField(-1, "Create");
-	LUA->PushString("antifreeze_watchdog");
-	LUA->PushNumber(1);
-	LUA->PushNumber(0);
-	LUA->PushCFunction(WatchDogPing);
-	LUA->Call(4, 0);
+		LUA->GetField(-1, "Create");
+			LUA->PushString("hang2kill_watchdog");
+			LUA->PushNumber(1);
+			LUA->PushNumber(0);
+			LUA->PushCFunction(WatchDogPing);
+		LUA->Call(4, 0);
 	LUA->Pop(2);
+
 	return 0;
 }
+
 GMOD_MODULE_CLOSE()
 {
-	flag = false;
-	t1.join();
+	flag.store(false, std::memory_order_release);
+	hang_detector.join();
+
 	return 0;
 }

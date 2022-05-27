@@ -1,0 +1,3 @@
+dpkg --add-architecture i386 && apt-get update
+apt-get -y install libcurl4-openssl-dev:i386
+find / -iname "libcurl.a" && find / -iname "libcurl.so"

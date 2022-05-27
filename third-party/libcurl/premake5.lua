@@ -5,7 +5,9 @@ function IncludeLibCurl()
 		syslibdirs(current_dir .. "/bin/**")
 		links "libcurl_imp"
 	else
-		links "libcurl"
+		syslibdirs "curl\\lib"
+		links "curl"
+		links "pthread"
 	end
 	sysincludedirs(current_dir .. "/include")
 end

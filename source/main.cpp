@@ -4,7 +4,7 @@
 #include <exception>
 #include <atomic>
 
-#ifdef __linux__
+#ifdef SYSTEM_LINUX
 	#include <sys/prctl.h>
 #endif
 
@@ -51,8 +51,8 @@ void SendDiscordMessage()
 
 void watchdog()
 {
-#ifdef __linux__
-	prctl(PR_SET_NAME,"antifreeze\0",NULL,NULL,NULL);
+#ifdef SYSTEM_LINUX
+	prctl(PR_SET_NAME, "hang2kill\0", NULL, NULL, NULL);
 #endif
 	std::cout << "[Hang2Kill] Watchdog starting up" << std::endl;
 

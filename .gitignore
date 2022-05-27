@@ -29,6 +29,9 @@ projects
 *.a
 *.lib
 
+!libcurl.dll
+!libcurl_imp.lib
+
 # Executables
 *.exe
 *.out

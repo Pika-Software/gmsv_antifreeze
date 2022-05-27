@@ -28,6 +28,9 @@ projects
 *.la
 *.a
 *.lib
+*.pdb
+*.ilk
+*.exp
 
 !libcurl.dll
 !libcurl_imp.lib

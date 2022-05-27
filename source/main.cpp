@@ -12,7 +12,7 @@
 #include <curl/curl.h>
 #include <dbg.h>
 
-#define _MODULE_VERSION_ "0.0.1"
+#define _MODULE_VERSION_ "0.0.2"
 
 std::atomic<std::time_t> srvtime = ATOMIC_VAR_INIT(0);
 std::atomic_ushort killtime = ATOMIC_VAR_INIT(60);

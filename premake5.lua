@@ -13,7 +13,7 @@ if not gmcommon then
 end
 
 include(gmcommon or "third-party/garrysmod_common")
-include("third-party/libcurl")
+include "third-party/libcurl"
 
 CreateWorkspace { name = "hang2kill" }
 	CreateProject { serverside = true }

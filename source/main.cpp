@@ -9,6 +9,8 @@
 #endif
 
 #include <GarrysMod/Lua/Interface.h>
+#include <curl/curl.h>
+#include <dbg.h>
 
 #define _MODULE_VERSION_ "0.0.1"
 
@@ -17,6 +19,35 @@ std::atomic_ushort killtime = ATOMIC_VAR_INIT(60);
 std::atomic_bool flag = ATOMIC_VAR_INIT(true);
 std::atomic_bool restart = ATOMIC_VAR_INIT(false);
 std::atomic_bool paused = ATOMIC_VAR_INIT(false);
+
+void SendDiscordMessage()
+{
+	CURL* session = curl_easy_init();
+
+	curl_easy_setopt(session, CURLOPT_URL, "https://discord.com/api/webhooks/");
+
+	curl_easy_setopt(session, CURLOPT_POST, 1);
+
+	struct curl_slist* headers = NULL;
+
+	headers = curl_slist_append(headers, "Accept: application/json");
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+	headers = curl_slist_append(headers, "charsets: utf-8");
+
+	curl_easy_setopt(session, CURLOPT_HTTPHEADER, headers);
+
+	curl_easy_setopt(session, CURLOPT_SSL_VERIFYPEER, 1);
+	curl_easy_setopt(session, CURLOPT_SSL_VERIFYHOST, 1);
+	
+	std::string jsonstr = "{\"embeds\":[{\"type\":\"rich\",\"color\":16711680.0,\"title\":\"**Hold on, server hang detected!**\",\"description\":\"Killing process...\"}],\"content\":\"\"}";
+	curl_easy_setopt(session, CURLOPT_POSTFIELDS, jsonstr.c_str());
+
+	CURLcode res = curl_easy_perform(session);
+	if (res != CURLE_OK)
+		Msg("[Hang2Kill] HTTP POST failed -> %s\n", curl_easy_strerror(res));
+
+	curl_easy_cleanup(session);
+}
 
 void watchdog()
 {
@@ -34,20 +65,25 @@ void watchdog()
 			//do nothing
 		} else if(restart){
 				std::cout << "[Hang2Kill] Manual restart requested, killing process..." << std::endl;
+				Msg("[Hang2Kill] Manual restart requested, killing process...\n");
 				exit(0);
 		} else if(srvtime >= (std::time(nullptr)) - 2) {
 			if (timeout != 0) {
 				timeout = 0;
 				std::cout << "[Hang2Kill] Server caught back up!" << std::endl;
+				Msg("[Hang2Kill] Server caught back up!\n");
 			}
 		} else {
 			timeout++;
 			std::cout << "[Hang2Kill] Hang Detected! (" << timeout << ")" << std::endl;
 			if (timeout == killtime) {
 				std::cout << "[Hang2Kill] Server hang timeout! Killing process..." << std::endl;
+				Msg("[Hang2Kill] Server hang timeout! Killing process...\n");
+				SendDiscordMessage();
 				exit(139);
 			} else if (timeout > killtime + 5) {
 				std::cout << "[Hang2Kill] Its not... its not shutting down!" << std::endl;
+				Msg("[Hang2Kill] Its not... its not shutting down!\n");
 				std::terminate();
 			}
 		}
@@ -91,6 +127,8 @@ LUA_FUNCTION(WatchDogSetPaused)
 
 GMOD_MODULE_OPEN()
 {
+	curl_global_init(CURL_GLOBAL_ALL);
+
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->CreateTable();
 		LUA->PushString(_MODULE_VERSION_);
@@ -123,6 +161,8 @@ GMOD_MODULE_OPEN()
 
 GMOD_MODULE_CLOSE()
 {
+	curl_global_cleanup();
+
 	flag.store(false, std::memory_order_release);
 	hang_detector.join();
 

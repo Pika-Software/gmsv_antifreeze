@@ -1,12 +1,13 @@
 local current_dir = _SCRIPT_DIR
 
 function IncludeLibCurl()
+	syslibdirs(current_dir .. "/bin/**")
 	if os.host() == "windows" then
-		syslibdirs(current_dir .. "/bin/**")
 		links "libcurl_imp"
 	else
-		syslibdirs "curl\\lib"
 		links "curl"
+		links "ssl"
+		links "crypto"
 		links "pthread"
 	end
 	sysincludedirs(current_dir .. "/include")

@@ -1,3 +1,27 @@
-dpkg --add-architecture i386 && apt-get update
-apt-get -y install libcurl4-openssl-dev:i386
+****************************************
+
+Install with dynamic linking (x86):
+
+dpkg --add-architecture i386 && apt update
+apt -y install libcurl4-openssl-dev:i386
 find / -iname "libcurl.a" && find / -iname "libcurl.so"
+
+****************************************
+
+Install with static linking (x86):
+
+apt update
+apt -y install build-essential git
+cd ~
+git clone https://github.com/curl/curl
+git clone https://github.com/openssl/openssl
+cd openssl
+./Configure -m32 linux-generic32 -static --prefix=/root/openssl_compiled --openssldir=/root/openssl_compiled
+make && make install
+cd ../curl
+./configure --host=i686-pc-linux-gnu CFLAGS=-m32 CC=/usr/bin/gcc --disable-shared --with-openssl=/root/openssl_compiled
+make
+cd ..
+find ./curl -iname "libcurl.a" && find ./openssl -iname "libssl.a" && find ./openssl -iname "libcrypto.a"
+
+****************************************
